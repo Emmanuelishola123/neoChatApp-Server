@@ -29,8 +29,8 @@ app.get("/", (req: Request, res: Response) => {
 app.use("/api/v1", v1Routes);
 
 //
-app.listen(config.PORT, () => {
+app.listen(config.PORT, async () => {
   console.log(`Server is Fire at http://localhost:${config.PORT}`);
-  connectDbase();
+  await connectDbase();
   console.log("DB Connected!");
 });

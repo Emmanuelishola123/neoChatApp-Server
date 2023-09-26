@@ -15,10 +15,10 @@ class authControllers {
     req: Request<{}, {}, registerUserBody>,
     res: Response,
   ) => {
-    const { username, email, password } = req.body;
+    const { name, username, email, password } = req.body;
 
     try {
-      await registerNewUser({ username, email, password });
+      await registerNewUser({name, username, email, password });
 
       return sendResponse(res, httpStatus.CREATED, "User successfully created");
     } catch (error) {
@@ -28,7 +28,7 @@ class authControllers {
       return sendResponse(
         res,
         httpStatus.INTERNAL_SERVER_ERROR,
-        "Error creating user",
+        "Error creating user: " + error,
       );
     }
   };
