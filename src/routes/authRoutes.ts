@@ -3,7 +3,6 @@ import authControllers from "../controllers/authControllers";
 import { processRequestBody } from "zod-express-middleware";
 import { registerUserSchema } from "../schema/authSchema";
 
-
 //
 const authRoutes = Router();
 
