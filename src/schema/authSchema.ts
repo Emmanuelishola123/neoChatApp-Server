@@ -10,10 +10,12 @@ export const registerUserSchema = {
     }),
     email: string({
       required_error: "Email is required",
-    }),
+    }).email("Not a valid email"),
     password: string({
       required_error: "Password is required",
-    }).min(8, "Password must be at least 8 characters long"),
+    })
+      .min(8, "Password must be at least 8 characters long")
+      .max(64, "Password can not exceed 64 characters"),
     confirmPassword: string({
       required_error: "Confirm password is required",
     }),
@@ -23,4 +25,19 @@ export const registerUserSchema = {
   }),
 };
 
+export const loginUserSchema = {
+  body: object({
+    email: string({
+      required_error: "Email is required",
+    }).email("Not a valid email"),
+    password: string({
+      required_error: "Password is required",
+    })
+      .min(8, "Password must be at least 8 characters long")
+      .max(64, "Password can not exceed 64 characters"),
+  }),
+};
+
 export type registerUserBody = TypeOf<typeof registerUserSchema.body>;
+export type loginUserBody = TypeOf<typeof loginUserSchema.body>;
+

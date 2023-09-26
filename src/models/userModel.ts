@@ -7,7 +7,7 @@ import argon2 from "argon2";
     return next();
   }
 })
-class User {
+export class User {
   @prop({ required: true })
   public name: string;
 
@@ -24,7 +24,7 @@ class User {
   public password: string;
 
   public async comparePassword(password: string): Promise<boolean> {
-    return argon2.verify(this.password, password);
+    return argon2.verify(password, this.password);
   }
 }
 

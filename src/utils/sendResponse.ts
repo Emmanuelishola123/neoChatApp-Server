@@ -15,7 +15,7 @@ const sendResponse = (
   data: {} = {},
   error: boolean = false,
 ) => {
-  res.json({
+  res.status(statusCode).json({
     statusCode,
     message,
     data,
@@ -23,5 +23,4 @@ const sendResponse = (
   });
 };
 
-
-export default sendResponse
+export default sendResponse;

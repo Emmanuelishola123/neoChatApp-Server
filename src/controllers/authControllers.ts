@@ -1,8 +1,11 @@
 import { Request, Response } from "express";
 import sendResponse from "../utils/sendResponse";
 import httpStatus from "http-status";
-import { registerUserBody } from "../schema/authSchema";
-import { registerNewUser } from "../services/authServices";
+import { loginUserBody, registerUserBody } from "../schema/authSchema";
+import { findUserByEmail, registerNewUser } from "../services/authServices";
+import { signJWT } from "../utils/jwt";
+import config from "../config";
+import { omit } from "../utils/helpers";
 
 class authControllers {
   /**
@@ -18,13 +21,13 @@ class authControllers {
     const { name, username, email, password } = req.body;
 
     try {
-      await registerNewUser({name, username, email, password });
+      await registerNewUser({ name, username, email, password });
 
       return sendResponse(res, httpStatus.CREATED, "User successfully created");
     } catch (error) {
-    //   if (error.code === 11000) {
-    //     return sendResponse(res, httpStatus.CONFLICT, "User already exist");
-    //   }
+      //   if (error.code === 11000) {
+      //     return sendResponse(res, httpStatus.CONFLICT, "User already exist");
+      //   }
       return sendResponse(
         res,
         httpStatus.INTERNAL_SERVER_ERROR,
@@ -39,9 +42,41 @@ class authControllers {
    * @param req
    * @param res
    */
-  static loginUser = async (req: Request, res: Response) => {
+  static loginUser = async (req: Request<{}, {}, loginUserBody>, res: Response) => {
+    const { email, password } = req.body;
     try {
-    } catch (error) {}
+      const user = await findUserByEmail(email);
+
+      if (!user || !user.comparePassword(password)) {
+        return sendResponse(
+          res,
+          httpStatus.UNAUTHORIZED,
+          "Invalid email or password",
+          {},
+          true,
+        );
+      }
+
+      const payload = omit(user.toJSON(), ["password"]);
+
+      const jwt = signJWT(payload);
+
+      res.cookie("accessToken", jwt, {
+        maxAge: 3.154e10, // 1 yr
+        httpOnly: true,
+        domain: config.BASE_URL,
+        path: "/",
+        sameSite: "strict",
+      });
+
+      sendResponse(res, httpStatus.OK, "Login successful", {});
+    } catch (error) {
+      return sendResponse(
+        res,
+        httpStatus.INTERNAL_SERVER_ERROR,
+        "Error signing in user: " + error,
+      );
+    }
   };
 }
 
