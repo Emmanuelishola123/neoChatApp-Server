@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "build": "tsc",
     "start": "node ./dist/index.js",
     "dev": "eslint . && npm run nodemon",
     "nodemon": "nodemon --exec ts-node ./src/index.ts",
