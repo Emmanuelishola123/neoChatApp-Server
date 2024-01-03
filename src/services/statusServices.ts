@@ -1,4 +1,5 @@
-import Status, { StatusModel } from "../models/statusModel";
+import { StatusModel } from "../models";
+import { Status } from "../models/statusModel";
 
 /*
  * Register new user to db

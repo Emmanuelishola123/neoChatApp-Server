@@ -1,5 +1,5 @@
-import { Ref, getModelForClass, prop } from "@typegoose/typegoose";
-import User from "./userModel";
+import { Ref, prop } from "@typegoose/typegoose";
+import { User } from "./userModel";
 
 // @pre<User>("save", async function (next) {
 //   if (this.isModified("password") || this.isNew) {
@@ -17,7 +17,7 @@ export enum CHATTYPE {
   FILE_CHAT = "file-chat",
 }
 
-class Chat {
+export class Chat {
   @prop({ required: true, ref: () => User })
   public sender: Ref<User>;
 
@@ -45,11 +45,3 @@ class Chat {
   @prop({})
   public voiceNote?: Buffer | string;
 }
-
-export default Chat;
-
-export const ChatModel = getModelForClass(Chat, {
-  schemaOptions: {
-    timestamps: true,
-  },
-});

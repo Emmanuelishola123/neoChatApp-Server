@@ -11,11 +11,10 @@ import {
 import { loginUser, registerNewUser } from "../services/authServices";
 import { signJWT } from "../utils/jwt";
 // import config from "../config";
-import { UserModel } from "../models/userModel";
-import { extendTime } from "../utils";
-import { generateToken } from "../utils";
+import { extendTime, generateOTP } from "../utils";
 import { sendEmail } from "../services/emailServices";
 import { omit } from "../utils/helpers";
+import { UserModel } from "../models";
 
 class authControllers {
   /**
@@ -26,7 +25,7 @@ class authControllers {
    */
   static registerUser = async (
     req: Request<object, object, registerUserBodyParams>,
-    res: Response,
+    res: Response
   ) => {
     const { name, email, password } = req.body;
 
@@ -70,7 +69,7 @@ class authControllers {
         res,
         httpStatus.CREATED,
         "User successfully created",
-        newUserData,
+        newUserData
       );
     } catch (error) {
       //   if (error.code === 11000) {
@@ -79,7 +78,7 @@ class authControllers {
       return sendResponse(
         res,
         httpStatus.INTERNAL_SERVER_ERROR,
-        "Error creating user: " + error,
+        "Error creating user: " + error
       );
     }
   };
@@ -92,39 +91,37 @@ class authControllers {
    */
   static loginUser = async (
     req: Request<object, object, loginUserBodyParams>,
-    res: Response,
+    res: Response
   ) => {
     try {
       // Sign in User Function
-      const user = await loginUser({ ...req.body });
+      const response = await loginUser({ ...req.body });
+
       // Check if user exists
-      if (!user) {
+      if (response.error || !response.data) {
         return sendResponse(
           res,
-          httpStatus.NOT_FOUND,
-          "No user found",
+          response.statusCode,
+          response.message,
           {},
-          true,
-        );
-      }
-      // check if there is error
-      if (!(await user.comparePassword(req.body.password))) {
-        return sendResponse(
-          res,
-          httpStatus.FORBIDDEN,
-          "Incorrect password",
-          {},
-          true,
+          response.error
         );
       }
 
-      const payload = {
-        _id: user._id,
-      };
+      Object.assign(response.data, {
+        password: undefined,
+        resetToken: undefined,
+        resetTokenTTL: undefined,
+        __v: undefined, 
+      });
+
+      const payload = response.data
+      
+
+      console.log(payload)
 
       // Sign token with user id : _id
-      const token = signJWT(payload);
-      console.log({ token });
+      const token = signJWT({...payload});
 
       res.cookie("token", token, {
         maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
@@ -135,13 +132,11 @@ class authControllers {
         // sameSite: "strict",
       });
 
-      // const data = omit(user, ["__v", "password"]);
-
       return sendResponse(
         res,
         httpStatus.OK,
-        "Successfully Authenticated",
-        user,
+        "Successfully login",
+        response.data
       );
     } catch (error) {
       console.log({ error });
@@ -150,7 +145,7 @@ class authControllers {
         httpStatus.INTERNAL_SERVER_ERROR,
         "Something went wrong",
         {},
-        true,
+        true
       );
     }
   };
@@ -163,38 +158,45 @@ class authControllers {
    */
   static forgotPassword = async (
     req: Request<object, object, forgotPasswordBodyParams>,
-    res: Response,
+    res: Response
   ) => {
     const { email } = req.body;
     try {
-      const newToken = await generateToken();
+      const newToken = await generateOTP();
 
-      await UserModel.findOneAndUpdate(
-        { email },
-        {
-          $set: {
-            resetToken: newToken,
-            resetTokenTTL: extendTime(10, "minutes"),
-          },
-        },
-      );
+      const user = await UserModel.findOne({ email });
 
+      if (!user) {
+        return sendResponse(
+          res,
+          httpStatus.NOT_FOUND,
+          "No user record with the email found!",
+          {},
+          true
+        );
+      }
+
+      user.resetToken = newToken;
+      user.resetTokenTTL = extendTime(10, "minutes");
+      const newUser = await user.save();
+
+      console.log({ newUser });
       // Send Reset token to user
       await sendEmail(
         email,
         {
-          link: newToken,
-          name: email.split("@")[0],
-          title: "Password Reset Link",
+          token: newToken,
+          name: user?.name || user?.email.split("@")[0],
+          title: "Password Reset Token",
         },
         "forgotpassword",
-        "Password Reset Link",
+        "Password Reset Token"
       );
 
       return sendResponse(
         res,
         httpStatus.OK,
-        "Forgot Password instructions has been sent to your email",
+        "Forgot Password instructions has been sent to your email"
       );
     } catch (error) {
       return sendResponse(
@@ -202,7 +204,7 @@ class authControllers {
         httpStatus.INTERNAL_SERVER_ERROR,
         "Something went wrong",
         {},
-        true,
+        true
       );
     }
   };
@@ -220,9 +222,9 @@ class authControllers {
       resetPasswordBodyParams,
       resetPasswordQueryParams
     >,
-    res: Response,
+    res: Response
   ) => {
-    const { confirmPassword, password } = req.body;
+    const { email, confirmPassword, password } = req.body;
     const { token } = req.query;
     try {
       if (password !== confirmPassword) {
@@ -231,30 +233,66 @@ class authControllers {
           httpStatus.BAD_REQUEST,
           "Password and confirm password must match.",
           {},
-          true,
+          true
         );
       }
 
-      await UserModel.findOneAndUpdate(
-        { resetToken: token },
-        {
-          $set: {
-            password: password,
-            resetToken: null,
-            resetTokenTTL: null,
-          },
-        },
-      );
+      const user = await UserModel.findOne({ email });
+
+      if (!user) {
+        return sendResponse(
+          res,
+          httpStatus.NOT_FOUND,
+          "No user record with the email found!",
+          {},
+          true
+        );
+      }
+
+      if (!user.resetToken || !user.resetTokenTTL || !token) {
+        return sendResponse(
+          res,
+          httpStatus.BAD_REQUEST,
+          "No reset token found!",
+          {},
+          true
+        );
+      }
+
+      if (!(await user.compareToken(token))) {
+        return sendResponse(
+          res,
+          httpStatus.BAD_REQUEST,
+          "Invalid reset token supplied!",
+          {},
+          true
+        );
+      }
+
+      if (user.resetTokenTTL < new Date()) {
+        return sendResponse(
+          res,
+          httpStatus.BAD_REQUEST,
+          "Reset token expired, try!",
+          {},
+          true
+        );
+      }
+
+      user.resetToken = undefined;
+      user.resetTokenTTL = undefined;
+      user.password = password;
+      user.save();
 
       return sendResponse(res, httpStatus.OK, "Password successfully changed!");
     } catch (error) {
-      console.log({error})
+      console.log({ error });
       return sendResponse(
         res,
         httpStatus.INTERNAL_SERVER_ERROR,
         "Something went wrong",
         {},
-        true,
+        true
       );
     }
   };

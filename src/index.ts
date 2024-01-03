@@ -10,7 +10,7 @@ import { createServer } from "http";
 import session from "express-session";
 import { Server } from "socket.io";
 import { initSocket } from "./socket";
-
+import morgan from "morgan";
 //
 export const app = express();
 export const httpServer = createServer(app);
@@ -27,16 +27,17 @@ app.use(
       httpOnly: true,
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
     },
-  }),
+  })
 );
 app.use(express.json());
 app.use(
   cors({
     origin: "*",
     credentials: true,
-  }),
+  })
 );
 app.use(helmet());
+app.use(morgan("dev"));
 
 initSocket(io);
 

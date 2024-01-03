@@ -1,6 +1,6 @@
-import { Ref, getModelForClass, prop } from "@typegoose/typegoose";
-import User from "./userModel";
+import { Ref, prop } from "@typegoose/typegoose";
 import { extendTime } from "../utils";
+import { User } from "./userModel";
 
 export enum STATUS_TYPE {
   TEXT = "text",
@@ -9,15 +9,15 @@ export enum STATUS_TYPE {
   IMAGE = "image",
 }
 
-class Status {
-  @prop({ required: true, ref: () => User })
+export class Status {
+  @prop({ ref: () => User })
   public sender: Ref<User>;
 
   @prop({ required: true, enum: STATUS_TYPE, type: String })
   public type: STATUS_TYPE;
 
   @prop({ default: true })
-  public content: string | Buffer;
+  public content: string;
 
   @prop({ required: true, default: extendTime(24, "hours") })
   public expireAfter: Date;
@@ -25,11 +25,3 @@ class Status {
   @prop({ default: false })
   public achieved: boolean;
 }
-
-export default Status;
-
-export const StatusModel = getModelForClass(Status, {
-  schemaOptions: {
-    timestamps: true,
-  },
-});

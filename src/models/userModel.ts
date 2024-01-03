@@ -1,5 +1,7 @@
-import { getModelForClass, pre, prop } from "@typegoose/typegoose";
+import { Ref, pre, prop } from "@typegoose/typegoose";
 import argon2 from "argon2";
+import {Group} from "./groupModel";
+import { Status } from "./statusModel";
 
 @pre<User>("save", async function (next) {
   if (this.isModified("password") || this.isNew) {
@@ -8,7 +10,15 @@ import argon2 from "argon2";
     return next();
   }
 })
-class User {
+@pre<User>("save", async function (next) {
+  if (this.isModified("resetToken") || this.isModified("resetTokenTTL")) {
+    const hashed = await argon2.hash(this.resetToken || "");
+    this.resetToken = hashed;
+    return next();
+  }
+})
+export class User {
+  //
   @prop({ required: true })
   public name: string;
 
@@ -22,7 +32,7 @@ class User {
   public usernameUpdatedAt: Date;
 
   @prop()
-  public avatar?: Buffer | string;
+  public avatar?: string;
 
   @prop()
   public password: string;
@@ -36,15 +46,18 @@ class User {
   @prop()
   public resetTokenTTL?: Date;
 
+  //
+  @prop({ ref: () => Status })
+  public status?: Ref<Status>[];
+
+  @prop({ ref: () => Group })
+  public groups?: Ref<Group>[];
+
   public async comparePassword(password: string): Promise<boolean> {
     return argon2.verify(this.password, password);
   }
+  public async compareToken(token: string): Promise<boolean> {
+    return argon2.verify(this.resetToken || "", token);
+  }
 }
 
-export default User
-
-export const UserModel = getModelForClass(User, {
-  schemaOptions: {
-    timestamps: true,
-  },
-});

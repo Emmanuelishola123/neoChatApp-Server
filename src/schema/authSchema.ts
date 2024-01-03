@@ -41,6 +41,9 @@ export const forgotPasswordSchema = {
 
 export const resetPasswordSchema = {
   body: object({
+    email: string({
+      required_error: "Email is required",
+    }),
     password: string({
       required_error: "Password is required",
     }).min(8, "Password must be at least 8 characters long"),
